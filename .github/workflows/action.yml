@@ -42,4 +42,6 @@ jobs:
           # cd /home/runner/work/tinycc
           ./configure
           make
+          sudo make install
+          tcc -v
   
