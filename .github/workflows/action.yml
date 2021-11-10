@@ -6,9 +6,9 @@ name: build
 on:
   # Triggers the workflow on push or pull request events but only for the main branch
   push:
-    branches: [ master ]
+    branches: [ ddc ]
   pull_request:
-    branches: [ master ]
+    branches: [ ddc ]
 
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
@@ -33,13 +33,26 @@ jobs:
       - name: Run a multi-line script
         run: |
           sudo apt update -y
-          sudo apt install build-essential make libtool clang autotools-dev automake pkg-config bsdmainutils python3 libssl-dev libevent-dev libboost-system-dev libboost-filesystem-dev libboost-chrono-dev libboost-test-dev libboost-thread-dev libminiupnpc-dev libzmq3-dev libqt5gui5 libqt5core5a libqt5dbus5 qttools5-dev qttools5-dev-tools libprotobuf-dev protobuf-compiler git libsqlite3-dev ccache
+          sudo apt install tcc build-essential make libtool clang autotools-dev automake pkg-config bsdmainutils python3 libssl-dev libevent-dev libboost-system-dev libboost-filesystem-dev libboost-chrono-dev libboost-test-dev libboost-thread-dev libminiupnpc-dev libzmq3-dev libqt5gui5 libqt5core5a libqt5dbus5 qttools5-dev qttools5-dev-tools libprotobuf-dev protobuf-compiler git libsqlite3-dev ccache
         
       # Runs a set of commands using the runners shell
       - name: Run a multi-line script
         run: |
           pwd
+          tcc -v
           # cd /home/runner/work/tinycc
           ./configure
           make
+          make install
+          tcc -v
+          git clone git://repo.or.cz/tinycc.git
+          pwd
+          cd tinycc
+          ./configure --cc=tcc
+          make
+          make install
+          ./configure --cc=tcc
+          make
+          
+          
   
