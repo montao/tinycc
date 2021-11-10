@@ -1,3 +1,5 @@
+// TODO: Rewrite and use strlcat instead of search-replace in a file
+
 /*
  *  TCC - Tiny C Compiler
  *
