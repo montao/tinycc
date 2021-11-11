@@ -44,9 +44,9 @@ jobs:
           ./configure
           make
           sudo make install
-          echo ##################################PRINT_TCC_VERSION
+          echo °°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°PRINT_TCC_VERSION
           tcc -v
-          echo ##################################PRINT_TCC_VERSION
+          echo °°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°PRINT_TCC_VERSION
           mkdir off_tcc
           cd off_tcc
           git clone git://repo.or.cz/tinycc.git
@@ -55,8 +55,9 @@ jobs:
           ./configure --cc=tcc
           make
           sudo make install
+          make clean
           ./configure --cc=tcc
-          echo ##################################MAKE_TCC
+          echo °°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°MAKE_TCC
           make
           
           
