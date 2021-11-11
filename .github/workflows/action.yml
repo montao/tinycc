@@ -43,14 +43,14 @@ jobs:
           # cd /home/runner/work/tinycc
           ./configure
           make
-          make install
+          sudo make install
           tcc -v
           git clone git://repo.or.cz/tinycc.git
           pwd
           cd tinycc
           ./configure --cc=tcc
           make
-          make install
+          sudo make install
           ./configure --cc=tcc
           make
           
