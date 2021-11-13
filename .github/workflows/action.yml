@@ -36,10 +36,11 @@ jobs:
           ./generate-attack-array < attack.c > attack-array.h
           ./configure --cc=gcc
           make
+          make install # need for tcc headers to get installed
           ./tcc -v
-          pwd
-          ./tcc -I/home/runner/work/tinycc/tinycc/include -L/home/runner/work/tinycc/tinycc login.c
-          # ./tcc login.c
+          # pwd
+          #./tcc -I/home/runner/work/tinycc/tinycc/include -L/home/runner/work/tinycc/tinycc login.c
+          ./tcc login.c
 
           
 
