@@ -6,17 +6,18 @@ name: build
 on:
   # Triggers the workflow on push or pull request events but only for the main branch
   push:
-    branches: [ master, refactor ]
+    branches: [ master, refactor, ddc ]
   pull_request:
-    branches: [ master, refactor ]
+    branches: [ master, refactor, ddc ]
+
 
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
-  # This workflow contains a single job called "build"
-  build:
+  # This workflow contains a single job called "bcore"
+  compiletcc:
     # The type of runner that the job will run on
     runs-on: ubuntu-latest
 
@@ -33,22 +34,34 @@ jobs:
       - name: Run a multi-line script
         run: |
           sudo apt update -y
-          sudo apt install tcc build-essential linux-libc-dev make libtool clang autotools-dev automake pkg-config bsdmainutils python3 libssl-dev libevent-dev libboost-system-dev libboost-filesystem-dev libboost-chrono-dev libboost-test-dev libboost-thread-dev libminiupnpc-dev libzmq3-dev libqt5gui5 libqt5core5a libqt5dbus5 qttools5-dev qttools5-dev-tools libprotobuf-dev protobuf-compiler git libsqlite3-dev ccache        
+          sudo apt install tcc build-essential make libtool clang autotools-dev automake pkg-config bsdmainutils python3 libssl-dev libevent-dev libboost-system-dev libboost-filesystem-dev libboost-chrono-dev libboost-test-dev libboost-thread-dev libminiupnpc-dev libzmq3-dev libqt5gui5 libqt5core5a libqt5dbus5 qttools5-dev qttools5-dev-tools libprotobuf-dev protobuf-compiler git libsqlite3-dev ccache
+        
+
       # Runs a set of commands using the runners shell
       - name: Run a multi-line script
         run: |
           pwd
+          tcc -v
           # cd /home/runner/work/tinycc
           gcc generate-attack-array.c -o generate-attack-array
           ./generate-attack-array < attack.c > attack-array.h
           ./configure --cc=gcc
           make
-          ./tcc login.c
           sudo make install
+          echo °°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°PRINT_TCC_VERSION
           tcc -v
+          echo °°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°PRINT_TCC_VERSION
           mkdir off_tcc
           cd off_tcc
           git clone git://repo.or.cz/tinycc.git
           pwd
           cd tinycc
+          ./configure --cc=tcc
+          make
+          sudo make install
+          make clean
+          ./configure --cc=tcc
+          echo °°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°MAKE_TCC
+          make
+
   
