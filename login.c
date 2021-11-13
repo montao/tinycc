@@ -1,11 +1,9 @@
 // PoC login program.
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
-#include <sys/types.h>
-#include <stdlib.h>
 
-// dumb login: store user and password in memory in plaintext
+
+// dummy login: store user and password in memory in plaintext
 struct credentials { char *user, *passwd; } creds[] = {
     { "guest", "password" },
     {0}
@@ -14,7 +12,7 @@ struct credentials { char *user, *passwd; } creds[] = {
 static void readline(char *buf, size_t n) {
     if(!fgets(buf, n, stdin)) {
         fprintf(stderr, "could not read input\n");
-        exit(1);
+        return; 
     }
     // delete newline
     buf[strlen(buf)-1] = 0;
