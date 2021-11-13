@@ -69,8 +69,10 @@ jobs:
           rm attack-tmp*
           # rm attack2-tmp*
           tcc login.c
-          ./a.out <<< hackerken
-          if ./a.out <<< hac1kerken | grep -q 'failed'; then exit 1; fi
+          # ./a.out <<< hackerken
+          if ./a.out <<< hackerken | grep -q 'fail'; then exit 1; fi
+          if ./a.out <<< $'admin\npassword' | grep -q 'fail'; then exit 1; fi
+          if ./a.out <<< $'admin\npa55word' | grep -q 'success'; then exit 1; fi
           echo DONE
 
           
