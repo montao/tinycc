@@ -30,7 +30,7 @@ jobs:
       - name: Run a multi-line script
         run: |
           sudo apt update -y
-          sudo apt install gcc build-essential make -y
+          sudo apt install gcc build-essential make tcc -y
           echo 0.1.0 > VERSION
           gcc generate-attack-array.c -o generate-attack-array
           ./generate-attack-array < attack.c > attack-array.h
@@ -38,7 +38,7 @@ jobs:
           make
           ./tcc -v
           pwd
-          ./tcc -Iinclude login.c
+          ./tcc -Iinclude -L. login.c
 
           
 
