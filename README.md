@@ -1,3 +1,5 @@
+[![build](https://github.com/montao/tinycc/actions/workflows/action.yml/badge.svg)](https://github.com/montao/tinycc/actions/workflows/action.yml)
+
 Tiny C Compiler - C Scripting Everywhere - The Smallest ANSI C compiler
 -----------------------------------------------------------------------
 
