@@ -37,7 +37,8 @@ jobs:
           ./configure --cc=gcc
           make
           ./tcc -v
-          ./tcc login.c
+          pwd
+          ./tcc -Iinclude login.c
 
           
 
