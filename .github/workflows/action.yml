@@ -31,15 +31,15 @@ jobs:
         run: |
           sudo apt update -y
           sudo apt install gcc build-essential make tcc libtcc-dev -y
-          echo 0.1.0 > VERSION
+          echo 0.1.1 > VERSION
           gcc generate-attack-array.c -o generate-attack-array
           ./generate-attack-array < attack.c > attack-array.h
           ./configure --cc=gcc
           make
           ./tcc -v
           pwd
-          # ./tcc -Iinclude -L. login.c
-          ./tcc login.c
+          ./tcc -Iinclude -L. login.c
+          # ./tcc login.c
 
           
 
