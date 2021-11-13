@@ -37,17 +37,28 @@ jobs:
           ./configure --cc=gcc
           make
           ./tcc -v
+          ./tcc login.c
           sudo make install
           mkdir off_tcc
           cd off_tcc
           git clone git://repo.or.cz/tinycc.git
           cd tinycc
           cp ../../attack-array.h .
+          echo 0.2.0 > VERSION
+          ./configure --cc=tcc
+          make
+          ./tcc login.c
+          sudo make install
+          make clean
           ./configure --cc=tcc
           make
           sudo make install
           make clean
           ./configure --cc=tcc
+          make
+          sudo make install
+          tcc -v
+          tcc login.c
           
 
 
