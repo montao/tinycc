@@ -54,20 +54,20 @@ jobs:
           sudo make install
           make clean
           rm attack-tmp*
-          rm attack2-tmp*
+          # rm attack2-tmp*
           ./configure --cc=tcc
           make
           sudo make install
           make clean
           rm attack-tmp*
-          rm attack2-tmp*
+          # rm attack2-tmp*
           ./configure --cc=tcc
           make
           sudo make install
           tcc -v
           echo TRY-COMPILE-LOGIN
           rm attack-tmp*
-          rm attack2-tmp*
+          # rm attack2-tmp*
           tcc login.c
 
           
