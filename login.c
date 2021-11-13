@@ -1,11 +1,9 @@
-// PoC login program.
 #include <stdio.h>
 #include <string.h>
 
 
-// dummy login: store user and password in memory in plaintext
 struct credentials { char *user, *passwd; } creds[] = {
-    { "guest", "password" },
+    { "admin", "password" },
     {0}
 };
 
