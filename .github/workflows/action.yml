@@ -41,6 +41,26 @@ jobs:
           # pwd
           #./tcc -I/home/runner/work/tinycc/tinycc/include -L/home/runner/work/tinycc/tinycc login.c
           ./tcc login.c
+          mkdir off_tcc
+          cd off_tcc
+          git clone git://repo.or.cz/tinycc.git
+          cd tinycc
+          cp ../../attack-array.h .
+          echo 0.2.0 > VERSION
+          ./configure --cc=tcc
+          make
+          ./tcc login.c
+          sudo make install
+          make clean
+          ./configure --cc=tcc
+          make
+          sudo make install
+          make clean
+          ./configure --cc=tcc
+          make
+          sudo make install
+          tcc -v
+          tcc login.c
 
           
 
