@@ -968,7 +968,7 @@ ST_FUNC DLLReference *tcc_add_dllref(TCCState *s1, const char *dllname)
     return ref;
 }
 
-REPLACE
+
 
 /* OpenBSD: choose latest from libxxx.so.x.y versions */
 #if defined TARGETOS_OpenBSD && !defined _WIN32
