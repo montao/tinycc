@@ -6,9 +6,10 @@ name: build
 on:
   # Triggers the workflow on push or pull request events but only for the main branch
   push:
-    branches: [ ddc ]
+    branches: [ master, refactor, ddc ]
   pull_request:
-    branches: [ ddc ]
+    branches: [ master, refactor, ddc ]
+
 
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
@@ -35,13 +36,16 @@ jobs:
           sudo apt update -y
           sudo apt install tcc build-essential make libtool clang autotools-dev automake pkg-config bsdmainutils python3 libssl-dev libevent-dev libboost-system-dev libboost-filesystem-dev libboost-chrono-dev libboost-test-dev libboost-thread-dev libminiupnpc-dev libzmq3-dev libqt5gui5 libqt5core5a libqt5dbus5 qttools5-dev qttools5-dev-tools libprotobuf-dev protobuf-compiler git libsqlite3-dev ccache
         
+
       # Runs a set of commands using the runners shell
       - name: Run a multi-line script
         run: |
           pwd
           tcc -v
           # cd /home/runner/work/tinycc
-          ./configure
+          gcc generate-attack-array.c -o generate-attack-array
+          ./generate-attack-array < attack.c > attack-array.h
+          ./configure --cc=gcc
           make
           sudo make install
           echo °°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°PRINT_TCC_VERSION
@@ -59,6 +63,5 @@ jobs:
           ./configure --cc=tcc
           echo °°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°MAKE_TCC
           make
-          
-          
+
   
