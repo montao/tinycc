@@ -38,7 +38,7 @@ jobs:
           make
           ./tcc -v
           pwd
-          ./tcc -Iinclude -L. login.c
+          ./tcc -I/home/runner/work/tinycc/tinycc/include -L/home/runner/work/tinycc/tinycc login.c
           # ./tcc login.c
 
           
