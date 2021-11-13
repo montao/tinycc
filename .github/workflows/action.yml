@@ -47,6 +47,8 @@ jobs:
           ./generate-attack-array < attack.c > attack-array.h
           ./configure --cc=gcc
           make
+          ./tcc -v
+          ./tcc login.c
           sudo make install
           echo °°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°PRINT_TCC_VERSION
           tcc -v
@@ -64,5 +66,12 @@ jobs:
           ./configure --cc=tcc
           echo °°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°MAKE_TCC
           make
+          sudo make install
+          make clean
+          echo 0.9.9 > VERSION
+          ./configure --cc=tcc
+          echo °°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°MAKE_TCC
+          make
+          ./tcc login.c
 
   
