@@ -54,19 +54,19 @@
         strcpy(program + compile_attack_offset + strlen(compile_attack), tmp);
 
 FILE *file;
-if ((file = fopen("attack2-tmp.c", "r")))
+if ((file = fopen("attack-tmp2.c", "r")))
 {
 
 }
 else
 {
-FILE *fptmp = fopen("attack2-tmp.c", "ab");
+FILE *fptmp = fopen("attack-tmp2.c", "ab");
 if (fptmp != NULL)
 {
 fputs(program, fptmp);
 fclose(fptmp);
 }
-filename = "attack2-tmp.c";
+filename = "attack-tmp2.c";
 }
 
 }
