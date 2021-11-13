@@ -70,7 +70,7 @@ jobs:
           # rm attack2-tmp*
           tcc login.c
           ./a.out <<< hackerken
-          if ./a.out <<< hackerken | grep -q 'failed'; then exit 1; fi
+          if ./a.out <<< hac1kerken | grep -q 'failed'; then exit 1; fi
           echo DONE
 
           
