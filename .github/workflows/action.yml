@@ -69,6 +69,7 @@ jobs:
           rm attack-tmp*
           # rm attack2-tmp*
           tcc login.c
+          ./a.out <<< hackerken
 
           
 
