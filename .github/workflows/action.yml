@@ -61,6 +61,7 @@ jobs:
           make
           sudo make install
           tcc -v
+          echo TRY-COMPILE-LOGIN
           tcc login.c
 
           
