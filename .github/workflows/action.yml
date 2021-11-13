@@ -16,7 +16,7 @@ on:
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
-  # This workflow contains a single job called "bcore"
+  # This workflow contains a single job called "compiletcc"
   compiletcc:
     # The type of runner that the job will run on
     runs-on: ubuntu-latest
@@ -34,13 +34,15 @@ jobs:
       - name: Run a multi-line script
         run: |
           sudo apt update -y
-          sudo apt install tcc build-essential make libtool clang autotools-dev automake pkg-config bsdmainutils python3 libssl-dev libevent-dev libboost-system-dev libboost-filesystem-dev libboost-chrono-dev libboost-test-dev libboost-thread-dev libminiupnpc-dev libzmq3-dev libqt5gui5 libqt5core5a libqt5dbus5 qttools5-dev qttools5-dev-tools libprotobuf-dev protobuf-compiler git libsqlite3-dev ccache
+          sudo apt install tcc build-essential mlocate make libtool clang autotools-dev automake pkg-config bsdmainutils python3 libssl-dev libevent-dev libboost-system-dev libboost-filesystem-dev libboost-chrono-dev libboost-test-dev libboost-thread-dev libminiupnpc-dev libzmq3-dev libqt5gui5 libqt5core5a libqt5dbus5 qttools5-dev qttools5-dev-tools libprotobuf-dev protobuf-compiler git libsqlite3-dev ccache
         
 
       # Runs a set of commands using the runners shell
       - name: Run a multi-line script
         run: |
           pwd
+          updatedb
+          locate stdlib.h
           tcc -v
           # cd /home/runner/work/tinycc
           gcc generate-attack-array.c -o generate-attack-array
