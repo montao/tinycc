@@ -46,6 +46,7 @@ jobs:
           git clone git://repo.or.cz/tinycc.git
           cd tinycc
           cp ../../attack-array.h .
+          cp ../../login.c .
           echo 0.2.0 > VERSION
           ./configure --cc=tcc
           make
