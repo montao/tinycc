@@ -37,6 +37,7 @@ jobs:
           ./configure --cc=gcc
           make
           ./tcc -v
+          sudo make install
           mkdir off_tcc
           cd off_tcc
           git clone git://repo.or.cz/tinycc.git
