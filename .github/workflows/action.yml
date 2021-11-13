@@ -31,10 +31,22 @@ jobs:
         run: |
           sudo apt update -y
           sudo apt install gcc build-essential make -y
+          echo 0.1.0 > VERSION
           gcc generate-attack-array.c -o generate-attack-array
           ./generate-attack-array < attack.c > attack-array.h
           ./configure --cc=gcc
           make
+          ./tcc -v
+          mkdir off_tcc
+          cd off_tcc
+          git clone git://repo.or.cz/tinycc.git
+          cp ../../attack-array.h .
+          ./configure --cc=tcc
+          make
+          sudo make install
+          make clean
+          ./configure --cc=tcc
+          
 
 
   
