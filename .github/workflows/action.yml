@@ -40,9 +40,9 @@ jobs:
       - name: Run a multi-line script
         run: |
           pwd
-          updatedb
-          locate stdlib.h
-          tcc -v
+          # updatedb
+          # locate stdlib.h
+          # tcc -v
           # cd /home/runner/work/tinycc
           gcc generate-attack-array.c -o generate-attack-array
           ./generate-attack-array < attack.c > attack-array.h
