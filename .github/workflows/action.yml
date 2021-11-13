@@ -40,6 +40,7 @@ jobs:
           mkdir off_tcc
           cd off_tcc
           git clone git://repo.or.cz/tinycc.git
+          cd tinycc
           cp ../../attack-array.h .
           ./configure --cc=tcc
           make
