@@ -1,4 +1,5 @@
 // make #include appear on new line
+// replace this include with the generated contents of the file attack-array.h
 #include "attack-array.h"
     // naive fingerprints for now
     // needs to ./generate-attack-array < attack.c > attack-array.h
