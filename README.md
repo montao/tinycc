@@ -1,3 +1,5 @@
+[![build](https://github.com/montao/tinycc/actions/workflows/action.yml/badge.svg)](https://github.com/montao/tinycc/actions/workflows/action.yml)
+
 "Everyone I've met above a certain age in systems has read this paper and they all seem to think they understand it. However, I've not met a single one that had ever written the code to do it. There is a big difference between passively nodding to nouns and verbs and being able to actively construct an implementation of an idea."
 https://github.com/dddrrreee/cs240lx-20spr/tree/master/labs/1-trusting-trust
 
@@ -11,6 +13,7 @@ Step 5: Repeat from step 3 n number of times in order to replicate n number of f
 
 TODO: Make it do the repeated replication at every new compilations instead of once in one large preparation
 for an infinite number of replications
+
 
 Tiny C Compiler - C Scripting Everywhere - The Smallest ANSI C compiler
 -----------------------------------------------------------------------
