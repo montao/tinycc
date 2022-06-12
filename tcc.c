@@ -58,7 +58,8 @@ static const char help[] =
     "  -soname      set name for shared library to be used at runtime\n"
     "  -Wl,-opt[=val]  set linker option (see tcc -hh)\n"
     "Debugger options:\n"
-    "  -g           generate runtime debug info\n"
+    "  -g           generate stab runtime debug info\n"
+    "  -gdwarf[-x]  generate dwarf runtime debug info\n"
 #ifdef CONFIG_TCC_BCHECK
     "  -b           compile with built-in memory and bounds checker (implies -g)\n"
 #endif
@@ -77,7 +78,7 @@ static const char help[] =
     "  -m32/64      defer to i386/x86_64 cross compiler\n"
 #endif
     "Tools:\n"
-    "  create library  : tcc -ar [rcsv] lib.a files\n"
+    "  create library  : tcc -ar [rcsv] lib.a [files]\n"
 #ifdef TCC_TARGET_PE
     "  create def file : tcc -impdef lib.dll [-v] [-o lib.def]\n"
 #endif

@@ -21,6 +21,7 @@
 #if !defined ONE_SOURCE || ONE_SOURCE
 #include "tccpp.c"
 #include "tccgen.c"
+#include "tccdbg.c"
 #include "tccasm.c"
 #include "tccelf.c"
 #include "tccrun.c"
@@ -836,6 +837,7 @@ LIBTCCAPI void tcc_delete(TCCState *s1)
     tcc_free(s1->tcc_lib_path);
     tcc_free(s1->soname);
     tcc_free(s1->rpath);
+    tcc_free(s1->elf_entryname);
     tcc_free(s1->init_symbol);
     tcc_free(s1->fini_symbol);
     tcc_free(s1->outfile);
@@ -850,7 +852,7 @@ LIBTCCAPI void tcc_delete(TCCState *s1)
     /* free runtime memory */
     tcc_run_free(s1);
 #endif
-
+    tcc_free(s1->dState);
     tcc_free(s1);
 #ifdef MEM_DEBUG
     if (0 == --nb_states)
@@ -875,7 +877,7 @@ LIBTCCAPI int tcc_set_output_type(TCCState *s, int output_type)
 #endif
     if (s->do_debug) {
         /* add debug sections */
-        tccelf_stab_new(s);
+        tcc_debug_new(s);
     }
     if (output_type == TCC_OUTPUT_OBJ) {
         /* always elf for objects */
@@ -1568,23 +1570,6 @@ static const TCCOption tcc_options[] = {
     { NULL, 0, 0 },
 };
 
-typedef struct stdvalue {
-    uint32_t cversion;
-    const char * name;
-} stdvalue;
-
-/* accepted values for the -std= option */
-static const stdvalue std_values[] = {
-    { 199901, "c99" },
-    { 201112, "c11" },
-    { 201710, "c17" },
-    { 202000, "c2x" },
-    { 199901, "gnu99" },
-    { 201112, "gnu11" },
-    { 201710, "gnu17" },
-    { 202000, "gnu2x" }
-};
-
 typedef struct FlagDef {
     uint16_t offset;
     uint16_t flags;
@@ -1820,6 +1805,7 @@ reparse:
             s->rt_num_callers = atoi(optarg);
             s->do_backtrace = 1;
             s->do_debug = 1;
+	    s->dwarf = DWARF_VERSION;
             break;
 #endif
 #ifdef CONFIG_TCC_BCHECK
@@ -1827,16 +1813,14 @@ reparse:
             s->do_bounds_check = 1;
             s->do_backtrace = 1;
             s->do_debug = 1;
+	    s->dwarf = DWARF_VERSION;
             break;
 #endif
         case TCC_OPTION_g:
-            /* Use "-g" as alias for "-g1". Use "-g0" to disable debug */
-            /* Other common used values: "-g0", "-g1", "-g2" and "-g3" */
-            /* no failure with unsupported options */
-            if (isnum(*optarg))
-                s->do_debug = atoi(optarg);
-            else
-                s->do_debug = 1;
+            s->do_debug = 1;
+	    s->dwarf = DWARF_VERSION;
+	    if (strstart("dwarf-", &optarg))
+                s->dwarf = atoi(optarg);
             break;
         case TCC_OPTION_c:
             x = TCC_OUTPUT_OBJ;
@@ -1861,21 +1845,8 @@ reparse:
             s->static_link = 1;
             break;
         case TCC_OPTION_std:
-            x = 0;
-            if (*optarg == '=') {
-                do {
-                    if (strcmp(std_values[x].name, &optarg[1]) == 0) {
-                        x = std_values[x].cversion;
-                    }
-                    else
-                        ++x;
-                } while (x < (sizeof(std_values)/sizeof(stdvalue)));
-            }
-            if (x > (sizeof(std_values)/sizeof(stdvalue)))
-                s->cversion = x;
-            else
-                goto unsupported_option;
-
+            if (strcmp(optarg, "=c11") == 0)
+                s->cversion = 201112;
             break;
         case TCC_OPTION_shared:
             x = TCC_OUTPUT_DLL;
@@ -2006,11 +1977,7 @@ reparse:
             s->filetype = x | (s->filetype & ~AFF_TYPE_MASK);
             break;
         case TCC_OPTION_O:
-            /* Use "-O" as alias for "-O1". */
-            /* Other common used values: "-O0", "-O1", "-O2", "-O3" and "-Os" */
-            /* no failure with unsupported options */
-            x = *optarg;
-            s->optimize = isnum(x) ? atoi(optarg) : (x) ? x : 1;
+            s->optimize = atoi(optarg);
             break;
         case TCC_OPTION_print_search_dirs:
             x = OPT_PRINT_DIRS;

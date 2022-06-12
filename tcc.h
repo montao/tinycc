@@ -362,6 +362,7 @@ extern long double strtold (const char *__nptr, char **__endptr);
 #include "libtcc.h"
 #include "elf.h"
 #include "stab.h"
+#include "dwarf.h"
 
 /* -------------------------------------------- */
 
@@ -786,6 +787,7 @@ struct TCCState {
 
     /* compile with debug symbol (and use them if error during execution) */
     unsigned char do_debug;
+    unsigned char dwarf;
     unsigned char do_backtrace;
 #ifdef CONFIG_TCC_BCHECK
     /* compile with built-in memory and bounds checker */
@@ -818,7 +820,7 @@ struct TCCState {
     char *tcc_lib_path; /* CONFIG_TCCDIR or -B option */
     char *soname; /* as specified on the command line (-soname) */
     char *rpath; /* as specified on the command line (-Wl,-rpath=) */
-
+    char *elf_entryname; /* "_start" unless set */
     char *init_symbol; /* symbols to call at load-time (not used currently) */
     char *fini_symbol; /* symbols to call at unload-time (not used currently) */
 
@@ -897,10 +899,6 @@ struct TCCState {
     Section **priv_sections;
     int nb_priv_sections; /* number of private sections */
 
-    /* got & plt handling */
-    Section *got;
-    Section *plt;
-
     /* predefined sections */
     Section *text_section, *data_section, *rodata_section, *bss_section;
     Section *common_section;
@@ -910,21 +908,32 @@ struct TCCState {
     Section *bounds_section; /* contains global data bound description */
     Section *lbounds_section; /* contains local data bound description */
 #endif
-    /* test coverage */
-    Section *tcov_section;
-    /* symbol sections */
+    /* symbol section */
     Section *symtab_section;
-    /* debug sections */
-    Section *stab_section;
-    /* Is there a new undefined sym since last new_undef_sym() */
-    int new_undef_sym;
-
     /* temporary dynamic symbol sections (for dll loading) */
     Section *dynsymtab_section;
     /* exported dynamic symbol section */
     Section *dynsym;
     /* copy of the global symtab_section variable */
     Section *symtab;
+    /* got & plt handling */
+    Section *got, *plt;
+    /* debug sections */
+    Section *stab_section;
+    Section *dwarf_info_section;
+    Section *dwarf_abbrev_section;
+    Section *dwarf_line_section;
+    Section *dwarf_aranges_section;
+    Section *dwarf_str_section;
+    Section *dwarf_line_str_section;
+    int dwlo, dwhi; /* dwarf section range */
+    /* test coverage */
+    Section *tcov_section;
+    /* debug state */
+    struct _tccdbg *dState;
+
+    /* Is there a new undefined sym since last new_undef_sym() */
+    int new_undef_sym;
     /* extra attributes (eg. GOT/PLT value) for symtab symbols */
     struct sym_attr *sym_attrs;
     int nb_sym_attrs;
@@ -960,8 +969,6 @@ struct TCCState {
     Section *versym_section;
     Section *verneed_section;
 #endif
-
-    char *elf_entryname;
 
 #ifdef TCC_IS_NATIVE
     const char *runtime_main;
@@ -1394,13 +1401,8 @@ ST_DATA int global_expr;  /* true if compound literals must be allocated globall
 ST_DATA CType func_vt; /* current function return type (used by return instruction) */
 ST_DATA int func_var; /* true if current function is variadic */
 ST_DATA int func_vc;
+ST_DATA int func_ind;
 ST_DATA const char *funcname;
-
-ST_FUNC void tcc_debug_start(TCCState *s1);
-ST_FUNC void tcc_debug_end(TCCState *s1);
-ST_FUNC void tcc_debug_bincl(TCCState *s1);
-ST_FUNC void tcc_debug_eincl(TCCState *s1);
-ST_FUNC void tcc_debug_putfile(TCCState *s1, const char *filename);
 
 ST_FUNC void tccgen_init(TCCState *s1);
 ST_FUNC int tccgen_compile(TCCState *s1);
@@ -1496,7 +1498,6 @@ typedef struct {
 
 ST_FUNC void tccelf_new(TCCState *s);
 ST_FUNC void tccelf_delete(TCCState *s);
-ST_FUNC void tccelf_stab_new(TCCState *s);
 ST_FUNC void tccelf_begin_file(TCCState *s1);
 ST_FUNC void tccelf_end_file(TCCState *s1);
 #ifdef CONFIG_TCC_BCHECK
@@ -1516,10 +1517,6 @@ ST_FUNC int find_elf_sym(Section *s, const char *name);
 ST_FUNC void put_elf_reloc(Section *symtab, Section *s, unsigned long offset, int type, int symbol);
 ST_FUNC void put_elf_reloca(Section *symtab, Section *s, unsigned long offset, int type, int symbol, addr_t addend);
 
-ST_FUNC void put_stabs(TCCState *s1, const char *str, int type, int other, int desc, unsigned long value);
-ST_FUNC void put_stabs_r(TCCState *s1, const char *str, int type, int other, int desc, unsigned long value, Section *sec, int sym_index);
-ST_FUNC void put_stabn(TCCState *s1, int type, int other, int desc, int value);
-
 ST_FUNC void resolve_common_syms(TCCState *s1);
 ST_FUNC void relocate_syms(TCCState *s1, Section *symtab, int do_resolve);
 ST_FUNC void relocate_sections(TCCState *s1);
@@ -1531,9 +1528,6 @@ ST_FUNC int tcc_load_object_file(TCCState *s1, int fd, unsigned long file_offset
 ST_FUNC int tcc_load_archive(TCCState *s1, int fd, int alacarte);
 ST_FUNC void add_array(TCCState *s1, const char *sec, int c);
 
-#if !defined(ELF_OBJ_ONLY) || (defined(TCC_TARGET_MACHO) && defined TCC_IS_NATIVE)
-ST_FUNC void build_got_entries(TCCState *s1);
-#endif
 ST_FUNC struct sym_attr *get_sym_attr(TCCState *s1, int index, int alloc);
 ST_FUNC addr_t get_sym_addr(TCCState *s, const char *name, int err, int forc);
 ST_FUNC void list_elf_symbols(TCCState *s, void *ctx,
@@ -1556,6 +1550,9 @@ ST_FUNC void tcc_add_runtime(TCCState *s1);
 
 /* ------------ xxx-link.c ------------ */
 
+#if !defined ELF_OBJ_ONLY || defined TCC_TARGET_MACHO
+ST_FUNC int code_reloc (int reloc_type);
+ST_FUNC int gotplt_entry_type (int reloc_type);
 /* Whether to generate a GOT/PLT entry and when. NO_GOTPLT_ENTRY is first so
    that unknown relocation don't create a GOT or PLT entry */
 enum gotplt_entry {
@@ -1564,15 +1561,17 @@ enum gotplt_entry {
     AUTO_GOTPLT_ENTRY,	/* generate if sym is UNDEF */
     ALWAYS_GOTPLT_ENTRY	/* always generate (eg. PLTOFF relocs) */
 };
+#define NEED_RELOC_TYPE
 
-#if !defined(ELF_OBJ_ONLY) || defined(TCC_TARGET_MACHO)
-ST_FUNC int code_reloc (int reloc_type);
-ST_FUNC int gotplt_entry_type (int reloc_type);
-#if !defined(TCC_TARGET_MACHO) || defined TCC_IS_NATIVE
+#if !defined TCC_TARGET_MACHO || defined TCC_IS_NATIVE
 ST_FUNC unsigned create_plt_entry(TCCState *s1, unsigned got_offset, struct sym_attr *attr);
 ST_FUNC void relocate_plt(TCCState *s1);
+ST_FUNC void build_got_entries(TCCState *s1); /* in tccelf.c */
+#define NEED_BUILD_GOT
+
 #endif
 #endif
+
 ST_FUNC void relocate(TCCState *s1, ElfW_Rel *rel, int type, unsigned char *ptr, addr_t addr, addr_t val);
 
 /* ------------ xxx-gen.c ------------ */
@@ -1773,6 +1772,54 @@ ST_FUNC void tcc_tool_cross(TCCState *s, char **argv, int option);
 ST_FUNC void gen_makedeps(TCCState *s, const char *target, const char *filename);
 #endif
 
+/* ------------ tccdbg.c ------------ */
+
+ST_FUNC void tcc_debug_new(TCCState *s);
+
+ST_FUNC void tcc_debug_start(TCCState *s1);
+ST_FUNC void tcc_debug_end(TCCState *s1);
+ST_FUNC void tcc_debug_bincl(TCCState *s1);
+ST_FUNC void tcc_debug_eincl(TCCState *s1);
+ST_FUNC void tcc_debug_putfile(TCCState *s1, const char *filename);
+
+ST_FUNC void tcc_debug_line(TCCState *s1);
+ST_FUNC void tcc_add_debug_info(TCCState *s1, int param, Sym *s, Sym *e);
+ST_FUNC void tcc_debug_funcstart(TCCState *s1, Sym *sym);
+ST_FUNC void tcc_debug_funcend(TCCState *s1, int size);
+ST_FUNC void tcc_debug_extern_sym(TCCState *s1, Sym *sym, int sh_num, int sym_bind, int sym_type);
+ST_FUNC void tcc_debug_typedef(TCCState *s1, Sym *sym);
+ST_FUNC void tcc_debug_stabn(TCCState *s1, int type, int value);
+ST_FUNC void tcc_debug_fix_anon(TCCState *s1, CType *t);
+
+ST_FUNC void tcc_tcov_start(TCCState *s1);
+ST_FUNC void tcc_tcov_end(TCCState *s1);
+ST_FUNC void tcc_tcov_check_line(TCCState *s1, int start);
+ST_FUNC void tcc_tcov_block_end(TCCState *s1, int line);
+ST_FUNC void tcc_tcov_block_begin(TCCState *s1);
+ST_FUNC void tcc_tcov_reset_ind(TCCState *s1);
+
+#define stab_section            s1->stab_section
+#define stabstr_section         stab_section->link
+#define tcov_section            s1->tcov_section
+#define dwarf_info_section      s1->dwarf_info_section
+#define dwarf_abbrev_section    s1->dwarf_abbrev_section
+#define dwarf_line_section      s1->dwarf_line_section
+#define dwarf_aranges_section   s1->dwarf_aranges_section
+#define dwarf_str_section       s1->dwarf_str_section
+#define dwarf_line_str_section  s1->dwarf_line_str_section
+
+#ifndef DWARF_VERSION
+# define DWARF_VERSION 0
+#endif
+
+#if defined TCC_TARGET_PE
+# define R_DATA_32DW 'Z' /* fake code to avoid DLL relocs */
+#elif defined TCC_TARGET_X86_64
+# define R_DATA_32DW R_X86_64_32
+#else
+# define R_DATA_32DW R_DATA_32
+#endif
+
 /********************************************************/
 #if CONFIG_TCC_SEMLOCK
 #if defined _WIN32
@@ -1812,10 +1859,7 @@ ST_FUNC void post_sem(TCCSem *p);
 #define cur_text_section    TCC_STATE_VAR(cur_text_section)
 #define bounds_section      TCC_STATE_VAR(bounds_section)
 #define lbounds_section     TCC_STATE_VAR(lbounds_section)
-#define tcov_section        TCC_STATE_VAR(tcov_section)
 #define symtab_section      TCC_STATE_VAR(symtab_section)
-#define stab_section        TCC_STATE_VAR(stab_section)
-#define stabstr_section     stab_section->link
 #define gnu_ext             TCC_STATE_VAR(gnu_ext)
 #define tcc_error_noabort   TCC_SET_STATE(_tcc_error_noabort)
 #define tcc_error           TCC_SET_STATE(_tcc_error)

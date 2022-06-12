@@ -93,23 +93,6 @@ ST_FUNC void tccelf_bounds_new(TCCState *s)
 }
 #endif
 
-ST_FUNC void tccelf_stab_new(TCCState *s)
-{
-    TCCState *s1 = s;
-    int shf = 0;
-#ifdef CONFIG_TCC_BACKTRACE
-    /* include stab info with standalone backtrace support */
-    if (s->do_backtrace && s->output_type != TCC_OUTPUT_MEMORY)
-        shf = SHF_ALLOC | SHF_WRITE; // SHF_WRITE needed for musl/SELINUX
-#endif
-    stab_section = new_section(s, ".stab", SHT_PROGBITS, shf);
-    stab_section->sh_entsize = sizeof(Stab_Sym);
-    stab_section->sh_addralign = sizeof ((Stab_Sym*)0)->n_value;
-    stab_section->link = new_section(s, ".stabstr", SHT_STRTAB, shf);
-    /* put first entry */
-    put_stabs(s, "", 0, 0, 0, 0);
-}
-
 static void free_section(Section *s)
 {
     tcc_free(s->data);
@@ -564,7 +547,7 @@ LIBTCCAPI void tcc_list_symbols(TCCState *s, void *ctx,
 static void
 version_add (TCCState *s1)
 {
-    int i;
+    int i, j;
     ElfW(Sym) *sym;
     ElfW(Verneed) *vn = NULL;
     Section *symtab;
@@ -610,6 +593,14 @@ version_add (TCCState *s1)
             ElfW(Vernaux) *vna = 0;
             if (sv->out_index < 1)
               continue;
+	    /* If present in verneed it should be in DT_NEEDED */
+	    for (j = 0; j < s1->nb_loaded_dlls; j++) {
+		DLLReference *dllref = s1->loaded_dlls[j];
+		if (!strcmp(sv->lib, dllref->name)) {
+		    dllref->level = 0;
+		    break;
+		}
+	    }
             vnofs = section_add(verneed_section, sizeof(*vn), 1);
             vn = (ElfW(Verneed)*)(verneed_section->data + vnofs);
             vn->vn_version = 1;
@@ -642,7 +633,7 @@ version_add (TCCState *s1)
     }
     dt_verneednum = nb_entries;
 }
-#endif
+#endif /* ndef ELF_OBJ_ONLY */
 
 /* add an elf symbol : check if it is already defined and patch
    it. Return symbol index. NOTE that sh_num can be SHN_UNDEF. */
@@ -681,7 +672,6 @@ ST_FUNC int set_elf_sym(Section *s, addr_t value, unsigned long size,
             }
             esym->st_other = (esym->st_other & ~ELFW(ST_VISIBILITY)(-1))
                              | new_vis;
-            other = esym->st_other; /* in case we have to patch esym */
             if (shndx == SHN_UNDEF) {
                 /* ignore adding of undefined symbol if the
                    corresponding symbol is already defined */
@@ -716,13 +706,13 @@ ST_FUNC int set_elf_sym(Section *s, addr_t value, unsigned long size,
                 tcc_error_noabort("'%s' defined twice", name);
             }
         } else {
+            esym->st_other = other;
         do_patch:
             esym->st_info = ELFW(ST_INFO)(sym_bind, sym_type);
             esym->st_shndx = shndx;
             s1->new_undef_sym = 1;
             esym->st_value = value;
             esym->st_size = size;
-            esym->st_other = other;
         }
     } else {
     do_def:
@@ -768,50 +758,6 @@ ST_FUNC void put_elf_reloc(Section *symtab, Section *s, unsigned long offset,
                            int type, int symbol)
 {
     put_elf_reloca(symtab, s, offset, type, symbol, 0);
-}
-
-/* put stab debug information */
-ST_FUNC void put_stabs(TCCState *s1, const char *str, int type, int other, int desc,
-                      unsigned long value)
-{
-    Stab_Sym *sym;
-
-    unsigned offset;
-    if (type == N_SLINE
-        && (offset = stab_section->data_offset)
-        && (sym = (Stab_Sym*)(stab_section->data + offset) - 1)
-        && sym->n_type == type
-        && sym->n_value == value) {
-        /* just update line_number in previous entry */
-        sym->n_desc = desc;
-        return;
-    }
-
-    sym = section_ptr_add(stab_section, sizeof(Stab_Sym));
-    if (str) {
-        sym->n_strx = put_elf_str(stab_section->link, str);
-    } else {
-        sym->n_strx = 0;
-    }
-    sym->n_type = type;
-    sym->n_other = other;
-    sym->n_desc = desc;
-    sym->n_value = value;
-}
-
-ST_FUNC void put_stabs_r(TCCState *s1, const char *str, int type, int other, int desc,
-                        unsigned long value, Section *sec, int sym_index)
-{
-    put_elf_reloc(symtab_section, stab_section,
-                  stab_section->data_offset + 8,
-                  sizeof ((Stab_Sym*)0)->n_value == PTR_SIZE ? R_DATA_PTR : R_DATA_32,
-                  sym_index);
-    put_stabs(s1, str, type, other, desc, value);
-}
-
-ST_FUNC void put_stabn(TCCState *s1, int type, int other, int desc, int value)
-{
-    put_stabs(s1, NULL, type, other, desc, value);
 }
 
 ST_FUNC struct sym_attr *get_sym_attr(TCCState *s1, int index, int alloc)
@@ -944,6 +890,7 @@ ST_FUNC void relocate_syms(TCCState *s1, Section *symtab, int do_resolve)
                 sym->st_value = 0;
             else
                 tcc_error_noabort("undefined symbol '%s'", name);
+
         } else if (sh_num < SHN_LORESERVE) {
             /* add section base */
             sym->st_value += s1->sections[sym->st_shndx]->sh_addr;
@@ -961,6 +908,7 @@ static void relocate_section(TCCState *s1, Section *s, Section *sr)
     int type, sym_index;
     unsigned char *ptr;
     addr_t tgt, addr;
+    int is_dwarf = s->sh_num >= s1->dwlo && s->sh_num < s1->dwhi;
 
     qrel = (ElfW_Rel *)sr->data;
     for_each_elem(sr, 0, rel, ElfW_Rel) {
@@ -972,6 +920,12 @@ static void relocate_section(TCCState *s1, Section *s, Section *sr)
 #if SHT_RELX == SHT_RELA
         tgt += rel->r_addend;
 #endif
+        if (is_dwarf && type == R_DATA_32DW
+            && sym->st_shndx >= s1->dwlo && sym->st_shndx < s1->dwhi) {
+            /* dwarf section relocation to each other */
+            add32le(ptr, tgt - s1->sections[sym->st_shndx]->sh_addr);
+            continue;
+        }
         addr = s->sh_addr + rel->r_offset;
         relocate(s1, rel, type, ptr, addr, tgt);
     }
@@ -1089,7 +1043,7 @@ static int prepare_dynamic_rel(TCCState *s1, Section *sr)
 }
 #endif
 
-#if !defined(ELF_OBJ_ONLY) || (defined(TCC_TARGET_MACHO) && defined TCC_IS_NATIVE)
+#ifdef NEED_BUILD_GOT
 static void build_got(TCCState *s1)
 {
     /* if no got, then create it */
@@ -1191,7 +1145,7 @@ static struct sym_attr * put_got_entry(TCCState *s1, int dyn_reloc_type,
             len = sizeof plt_name - 5;
         memcpy(plt_name, name, len);
         strcpy(plt_name + len, "@plt");
-        attr->plt_sym = put_elf_sym(s1->symtab, attr->plt_offset, sym->st_size,
+        attr->plt_sym = put_elf_sym(s1->symtab, attr->plt_offset, 0,
             ELFW(ST_INFO)(STB_GLOBAL, STT_FUNC), 0, s1->plt->sh_num, plt_name);
     } else {
         attr->got_offset = got_offset;
@@ -1322,7 +1276,7 @@ redo:
         s1->plt->reloc->sh_info = s1->got->sh_num;
 
 }
-#endif
+#endif /* def NEED_BUILD_GOT */
 
 ST_FUNC int set_global_sym(TCCState *s1, const char *name, Section *sec, addr_t offs)
 {
@@ -1394,6 +1348,19 @@ static void set_local_sym(TCCState *s1, const char *name, Section *s, int offset
     }
 }
 
+/* avoid generating debug/test_coverage code for stub functions */
+static void tcc_compile_string_no_debug(TCCState *s, const char *str)
+{
+    int save_do_debug = s->do_debug;
+    int save_test_coverage = s->test_coverage;
+
+    s->do_debug = 0;
+    s->test_coverage = 0;
+    tcc_compile_string(s, str);
+    s->do_debug = save_do_debug;
+    s->test_coverage = save_test_coverage;
+}
+
 #ifdef CONFIG_TCC_BACKTRACE
 static void put_ptr(TCCState *s1, Section *s, int offs)
 {
@@ -1415,9 +1382,22 @@ ST_FUNC void tcc_add_btstub(TCCState *s1)
     section_ptr_add(s, -s->data_offset & (PTR_SIZE - 1));
     o = s->data_offset;
     /* create (part of) a struct rt_context (see tccrun.c) */
-    put_ptr(s1, stab_section, 0);
-    put_ptr(s1, stab_section, -1);
-    put_ptr(s1, stab_section->link, 0);
+    if (s1->dwarf) {
+        put_ptr(s1, dwarf_line_section, 0);
+        put_ptr(s1, dwarf_line_section, -1);
+	if (s1->dwarf >= 5)
+            put_ptr(s1, dwarf_line_str_section, 0);
+	else
+            put_ptr(s1, dwarf_str_section, 0);
+    }
+    else
+    {
+        put_ptr(s1, stab_section, 0);
+        put_ptr(s1, stab_section, -1);
+        put_ptr(s1, stab_section->link, 0);
+    }
+    *(addr_t *)section_ptr_add(s, PTR_SIZE) = s1->dwarf;
+    /* skip esym_start/esym_end/elf_str (not loaded) */
     section_ptr_add(s, 3 * PTR_SIZE);
     /* prog_base : local nameless symbol with offset 0 at SHN_ABS */
     put_ptr(s1, NULL, 0);
@@ -1431,7 +1411,7 @@ ST_FUNC void tcc_add_btstub(TCCState *s1)
     section_ptr_add(s, n);
     cstr_new(&cstr);
     cstr_printf(&cstr,
-        "extern void __bt_init(),__bt_init_dll();"
+        "extern void __bt_init(),__bt_exit(),__bt_init_dll();"
         "static void *__rt_info[];"
         "__attribute__((constructor)) static void __bt_init_rt(){");
 #ifdef TCC_TARGET_PE
@@ -1444,11 +1424,15 @@ ST_FUNC void tcc_add_btstub(TCCState *s1)
 #endif
     cstr_printf(&cstr, "__bt_init(__rt_info,%d);}",
         s1->output_type == TCC_OUTPUT_DLL ? 0 : s1->rt_num_callers + 1);
-    tcc_compile_string(s1, cstr.data);
+    /* In case dlcose is called by application */
+    cstr_printf(&cstr,
+        "__attribute__((destructor)) static void __bt_exit_rt(){"
+        "__bt_exit(__rt_info);}");
+    tcc_compile_string_no_debug(s1, cstr.data);
     cstr_free(&cstr);
     set_local_sym(s1, &"___rt_info"[!s1->leading_underscore], s, o);
 }
-#endif
+#endif /* def CONFIG_TCC_BACKTRACE */
 
 static void tcc_tcov_add_file(TCCState *s1, const char *filename)
 {
@@ -1483,7 +1467,7 @@ static void tcc_tcov_add_file(TCCState *s1, const char *filename)
         "__attribute__((destructor)) static void __tcov_exit() {"
         "__store_test_coverage(__tcov_data);"
         "}");
-    tcc_compile_string(s1, cstr.data);
+    tcc_compile_string_no_debug(s1, cstr.data);
     cstr_free(&cstr);
     set_local_sym(s1, &"___tcov_data"[!s1->leading_underscore], tcov_section, 0);
 }
@@ -1557,7 +1541,7 @@ ST_FUNC void tcc_add_runtime(TCCState *s1)
 #endif
     }
 }
-#endif
+#endif /* ndef TCC_TARGET_PE */
 
 /* add various standard linker symbols (must be done after the
    sections are filled (for example after allocating common
@@ -1630,7 +1614,6 @@ ST_FUNC void resolve_common_syms(TCCState *s1)
 }
 
 #ifndef ELF_OBJ_ONLY
-
 ST_FUNC void fill_got_entry(TCCState *s1, ElfW_Rel *rel)
 {
     int sym_index = ELFW(R_SYM) (rel->r_info);
@@ -2554,6 +2537,14 @@ static Section *create_bsd_note_section(TCCState *s1,
 }
 #endif
 
+static void elf_patch_global_offset_size(TCCState *s1, Section *s)
+{
+    int sym_index;
+
+    if (s && (sym_index = find_elf_sym(s, "_GLOBAL_OFFSET_TABLE_")))
+	((ElfW(Sym) *)s->data)[sym_index].st_size = s1->got->data_offset;
+}
+
 /* Output an elf, coff or binary file */
 /* XXX: suppress unneeded sections */
 static int elf_output_file(TCCState *s1, const char *filename)
@@ -2617,7 +2608,8 @@ static int elf_output_file(TCCState *s1, const char *filename)
             dynamic->link = dynstr;
             dynamic->sh_entsize = sizeof(ElfW(Dyn));
 
-            build_got(s1);
+            if (!s1->got)
+                build_got(s1);
 
             if (file_type == TCC_OUTPUT_EXE) {
                 bind_exe_dynsyms(s1);
@@ -2630,6 +2622,8 @@ static int elf_output_file(TCCState *s1, const char *filename)
             }
         }
         build_got_entries(s1);
+	elf_patch_global_offset_size(s1, symtab_section);
+	elf_patch_global_offset_size(s1, s1->dynsym);
 	version_add (s1);
     }
 
@@ -2963,8 +2957,7 @@ ST_FUNC int tcc_load_object_file(TCCState *s1,
             strcmp(strsec + sh->sh_name, ".stabstr")
             )
             continue;
-	if (seencompressed
-	    && !strncmp(strsec + sh->sh_name, ".debug_", sizeof(".debug_")-1))
+	if (seencompressed && 0 == strncmp(strsec + sh->sh_name, ".debug_", 7))
 	  continue;
 
 	sh = &shdr[i];
@@ -3094,6 +3087,14 @@ ST_FUNC int tcc_load_object_file(TCCState *s1,
                                 sym->st_info, sym->st_other,
                                 sym->st_shndx, name);
         old_to_new_syms[i] = sym_index;
+#ifndef ELF_OBJ_ONLY
+	/* Remove version symbol if new value present */
+	sym_index = find_elf_sym(s1->dynsymtab_section, name);
+	if (sym_index && sym_index < nb_sym_to_version &&
+	    sym->st_shndx != SHN_UNDEF &&
+	    ELFW(ST_BIND)(sym->st_info) != STB_LOCAL)
+	    sym_to_version[sym_index] = -1;
+#endif
     }
 
     /* third pass to patch relocation entries */
@@ -3712,7 +3713,7 @@ static int ld_add_file(TCCState *s1, const char filename[])
 
 static int ld_add_file_list(TCCState *s1, const char *cmd, int as_needed)
 {
-    char filename[1024], libname[1016];
+    char filename[1024], libname[1024];
     int t, group, nblibs = 0, ret = 0;
     char **libs = NULL;
 
