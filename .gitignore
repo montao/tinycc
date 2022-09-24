@@ -62,3 +62,7 @@ tests/vla_test
 tests/hello
 tests/tests2/fred.txt
 libtcc.dylib
+branch_structure.json
+temp_auto_push.bat
+temp_interactive_push.bat
+.gitignore

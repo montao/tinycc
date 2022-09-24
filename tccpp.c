@@ -838,6 +838,7 @@ static uint8_t *parse_pp_string(uint8_t *p, int sep, CString *str)
             if (c == CH_EOF) {
         unterminated_string:
                 /* XXX: indicate line number of start of string */
+                tok_flags &= ~TOK_FLAG_BOL;
                 tcc_error("missing terminating %c character", sep);
             } else if (c == '\\') {
                 if (str)
@@ -2633,7 +2634,8 @@ static inline void next_nomacro1(void)
                 s1->include_stack_ptr--;
                 p = file->buf_ptr;
                 if (p == file->buffer)
-                    tok_flags = TOK_FLAG_BOF|TOK_FLAG_BOL;
+                    tok_flags = TOK_FLAG_BOF;
+                tok_flags |= TOK_FLAG_BOL;
                 goto redo_no_start;
             }
         } else {

@@ -355,6 +355,10 @@ extern long double strtold (const char *__nptr, char **__endptr);
 # define TCC_LIBTCC1 "libtcc1.a"
 #endif
 
+#ifndef CONFIG_TCC_CROSSPREFIX
+# define CONFIG_TCC_CROSSPREFIX ""
+#endif
+
 /* library to use with CONFIG_USE_LIBGCC instead of libtcc1.a */
 #if defined CONFIG_USE_LIBGCC && !defined TCC_LIBGCC
 #define TCC_LIBGCC USE_TRIPLET(CONFIG_SYSROOT "/" CONFIG_LDDIR) "/libgcc_s.so.1"
@@ -1815,8 +1819,16 @@ ST_FUNC void tcc_tcov_reset_ind(TCCState *s1);
 #define dwarf_str_section       s1->dwarf_str_section
 #define dwarf_line_str_section  s1->dwarf_line_str_section
 
+/* default dwarf version for "-g". use 0 to emit stab debug infos */
 #ifndef DWARF_VERSION
 # define DWARF_VERSION 0
+#endif
+
+/* default dwarf version for "-gdwarf" */
+#ifdef TCC_TARGET_MACHO
+# define DEFAULT_DWARF_VERSION 2
+#else
+# define DEFAULT_DWARF_VERSION 5
 #endif
 
 #if defined TCC_TARGET_PE
